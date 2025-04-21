@@ -66,6 +66,6 @@ python main.py
 
 
 ## 📄 Licencia
-Esta aplicación está disponible bajo la licencia MIT. Consulta la licencia para obtener más información.
+Esta aplicación está disponible bajo la **GNU Affero General Public License v3.0 (AGPL-3.0)**. Consulta el archivo [LICENSE](LICENSE) para obtener más detalles sobre los términos y condiciones de esta licencia.
 
 ##
