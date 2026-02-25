@@ -139,33 +139,40 @@ class WhisperGUI(QMainWindow):
             self.stop_recording()
 
     def start_recording(self):
+        # Stop and wait for old thread if it exists to avoid signal collisions
+        if self.thread and self.thread.isRunning():
+            self.thread.disconnect()
+            self.thread.stop()
+            self.thread.wait()
+
         self.text_output.clear()
         self.timer_label.setText("⏱️ Tiempo: 0:00")
         self.is_recording = True
+        self.full_text = ""
 
         idx = self.device_selector.currentData()
         lang = self.language_selector.currentData()
         model_name = self.model_selector.currentData()
         self.thread = AudioRecorder(device_index=idx, language=lang, model_name=model_name)
-        self.thread.transcribed.connect(self.show_result)
+        self.thread.chunk_transcribed.connect(self.handle_chunk)
         self.thread.error.connect(self.show_error)
         self.thread.finished.connect(self.on_finished)
         self.thread.volume_level.connect(self.update_intensity)
 
         self.record_button.setText("🛑 Detener grabación")
         self.record_button.setEnabled(True)
-        self.info_label.setText("🎙️ Grabando...")
+        self.info_label.setText("🎙️ Grabando y transcribiendo...")
 
         self.start_time = time.time()
         self.timer.start(100)
         self.thread.start()
 
     def stop_recording(self):
-        if self.thread:
+        if self.thread and self.thread.isRunning():
             self.thread.stop()
             self.timer.stop()
             self.record_button.setEnabled(False)
-            self.info_label.setText("⏳ Procesando...")
+            self.info_label.setText("⏳ Terminando transcripción...")
 
     def update_intensity(self, level: int):
         self.intensity_bar.setValue(level)
@@ -179,11 +186,14 @@ class WhisperGUI(QMainWindow):
             t = f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
             self.timer_label.setText(f"⏱️ Tiempo: {t}")
 
-    def show_result(self, text: str):
-        self.text_output.setText(text)
-        self.info_label.setText("✅ Transcripción completada.")
-        QApplication.clipboard().setText(text)
-        QTimer.singleShot(300, lambda: pyautogui.hotkey('ctrl', 'v'))
+    def handle_chunk(self, text: str):
+        if self.full_text:
+            self.full_text += " " + text
+        else:
+            self.full_text = text
+        self.text_output.setPlainText(self.full_text)
+        # Scroll to bottom
+        self.text_output.verticalScrollBar().setValue(self.text_output.verticalScrollBar().maximum())
 
     def show_error(self, msg: str):
         self.text_output.setText(f"❌ Error: {msg}")
@@ -194,6 +204,12 @@ class WhisperGUI(QMainWindow):
         self.record_button.setText("🎙️ Iniciar grabación")
         self.record_button.setEnabled(True)
         self.info_label.setText("✅ Transcripción completada.")
+        
+        if hasattr(self, 'full_text') and self.full_text:
+            text = self.full_text.strip()
+            QApplication.clipboard().setText(text)
+            # Give a small delay to allow focus to return to previous app if needed
+            QTimer.singleShot(500, lambda: pyautogui.hotkey('ctrl', 'v'))
 
     def show_help(self):
         help_dialog = HelpDialog()
