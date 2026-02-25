@@ -6,14 +6,14 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QIcon
-from backend import AudioRecorder, get_input_devices, device
+from backend import AudioRecorder, get_input_devices
 import pyautogui
 
 class HelpDialog(QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Cómo usar la aplicación")
-        self.setMinimumWidth(500)  # Ancho más grande para la ventana de ayuda
+        self.setMinimumWidth(500)
         self.setStyleSheet("font-size: 14px;")
 
         layout = QVBoxLayout(self)
@@ -34,21 +34,17 @@ class HelpDialog(QDialog):
         help_label.setWordWrap(True)
 
         layout.addWidget(help_label)
-
         self.setLayout(layout)
 
 
 class WhisperGUI(QMainWindow):
-    # Señal que se usará para el toggle desde el hotkey
     toggle_hotkey = Signal()
 
     def __init__(self):
         super().__init__()
 
-        # Conectar la señal del hotkey al método de toggle
         self.toggle_hotkey.connect(self.toggle_recording)
 
-        # Ícono de la ventana (esquina superior y barra de tareas)
         icon_path = os.path.join(os.path.dirname(__file__), "logo.png")
         icon = QIcon(icon_path)
         if icon.isNull():
@@ -58,8 +54,8 @@ class WhisperGUI(QMainWindow):
 
         self.setWindowTitle("Transcriptor de voz a texto - Easy Whisper")
         self.setStyleSheet("font-size: 14px;")
+        self.resize(600, 700)
 
-        # Central widget y layout
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
@@ -69,6 +65,23 @@ class WhisperGUI(QMainWindow):
         for i, name in get_input_devices():
             self.device_selector.addItem(f"[{i}] {name}", userData=i)
 
+        # Selector de idioma
+        self.language_selector = QComboBox()
+        self.language_selector.addItem("Auto detectar", None)
+        self.language_selector.addItem("Español", "es")
+        self.language_selector.addItem("English", "en")
+        self.language_selector.addItem("Français", "fr")
+        self.language_selector.addItem("Deutsch", "de")
+        self.language_selector.addItem("Português", "pt")
+        self.language_selector.addItem("Italiano", "it")
+        self.language_selector.addItem("中文", "zh")
+        self.language_selector.addItem("日本語", "ja")
+
+        # Selector de modelo
+        self.model_selector = QComboBox()
+        self.model_selector.addItem("Small (rápido)", "small")
+        self.model_selector.addItem("Medium (lento, mejor multi idioma)", "medium")
+
         # Barra de intensidad de sonido
         self.intensity_bar = QProgressBar()
         self.intensity_bar.setRange(0, 100)
@@ -77,42 +90,42 @@ class WhisperGUI(QMainWindow):
         # Temporizador
         self.timer_label = QLabel("⏱️ Tiempo: 0:00", alignment=Qt.AlignCenter)
 
-        # Estado / dispositivo en uso
-        self.info_label = QLabel(f"Usando: {device.upper()}", alignment=Qt.AlignCenter)
+        # Estado
+        self.info_label = QLabel("Usando: CPU", alignment=Qt.AlignCenter)
 
-        # Cuadro de texto con scroll y ajuste de línea
+        # Cuadro de texto
         self.text_output = QTextEdit(readOnly=True)
         self.text_output.setLineWrapMode(QTextEdit.WidgetWidth)
         self.text_output.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.text_output.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
-        # Botón de grabación (opcional, ahora también hay hotkey)
+        # Botones
         self.record_button = QPushButton("🎙️ Iniciar grabación")
         self.record_button.clicked.connect(self.toggle_recording)
 
-        # Botón de ayuda
         self.help_button = QPushButton("?")
         self.help_button.clicked.connect(self.show_help)
 
-        # Texto de control de atajo
         self.hotkey_label = QLabel("Usa <b>Ctrl+Alt</b> para iniciar y detener la grabación.", alignment=Qt.AlignCenter)
 
-        # Montar layout
+        # Layout
         layout.addWidget(QLabel("Selecciona el micrófono:"))
         layout.addWidget(self.device_selector)
+        layout.addWidget(QLabel("Selecciona el idioma:"))
+        layout.addWidget(self.language_selector)
+        layout.addWidget(QLabel("Selecciona el modelo:"))
+        layout.addWidget(self.model_selector)
         layout.addWidget(self.intensity_bar)
         layout.addWidget(self.timer_label)
         layout.addWidget(self.record_button)
-        layout.addWidget(self.hotkey_label)  # Texto sobre el atajo
+        layout.addWidget(self.hotkey_label)
         layout.addWidget(self.info_label)
         layout.addWidget(self.text_output)
 
-        # Espaciado para mover el botón de ayuda a la derecha
         spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         layout.addItem(spacer)
         layout.addWidget(self.help_button, alignment=Qt.AlignRight)
 
-        # Estado interno
         self.thread = None
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_timer)
@@ -131,7 +144,9 @@ class WhisperGUI(QMainWindow):
         self.is_recording = True
 
         idx = self.device_selector.currentData()
-        self.thread = AudioRecorder(device_index=idx)
+        lang = self.language_selector.currentData()
+        model_name = self.model_selector.currentData()
+        self.thread = AudioRecorder(device_index=idx, language=lang, model_name=model_name)
         self.thread.transcribed.connect(self.show_result)
         self.thread.error.connect(self.show_error)
         self.thread.finished.connect(self.on_finished)
@@ -165,11 +180,8 @@ class WhisperGUI(QMainWindow):
             self.timer_label.setText(f"⏱️ Tiempo: {t}")
 
     def show_result(self, text: str):
-        # 1) Mostrar en la ventana
         self.text_output.setText(text)
         self.info_label.setText("✅ Transcripción completada.")
-
-        # 2) Copiar al portapapeles y pegar en la app activa
         QApplication.clipboard().setText(text)
         QTimer.singleShot(300, lambda: pyautogui.hotkey('ctrl', 'v'))
 
@@ -186,4 +198,3 @@ class WhisperGUI(QMainWindow):
     def show_help(self):
         help_dialog = HelpDialog()
         help_dialog.exec()
-
