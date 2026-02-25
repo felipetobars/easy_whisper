@@ -14,7 +14,7 @@ def register_hotkey(gui: WhisperGUI):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    icon_path = os.path.join(os.path.dirname(__file__), "logo.ico")
+    icon_path = os.path.join(os.path.dirname(__file__), "logo.png")
     app.setWindowIcon(QIcon(icon_path))
 
     window = WhisperGUI()

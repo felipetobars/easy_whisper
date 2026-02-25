@@ -49,14 +49,14 @@ class WhisperGUI(QMainWindow):
         self.toggle_hotkey.connect(self.toggle_recording)
 
         # Ícono de la ventana (esquina superior y barra de tareas)
-        icon_path = os.path.join(os.path.dirname(__file__), "logo.ico")
+        icon_path = os.path.join(os.path.dirname(__file__), "logo.png")
         icon = QIcon(icon_path)
         if icon.isNull():
             print("¡Error! No se pudo cargar el icono.")
         else:
             self.setWindowIcon(icon)
 
-        self.setWindowTitle("🎤 Transcriptor de voz a texto - Whisper")
+        self.setWindowTitle("Transcriptor de voz a texto - Easy Whisper")
         self.setStyleSheet("font-size: 14px;")
 
         # Central widget y layout
