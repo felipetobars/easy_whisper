@@ -1,4 +1,4 @@
-call conda activate easy_whisper
-call cd easywhisper
-call python main.py
+call .venv\Scripts\activate
+cd easywhisper
+python main.py
 exit
